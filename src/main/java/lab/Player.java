@@ -8,26 +8,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Log
-@ToString(exclude = "wonGames") // Exclude list to prevent circular references in logs
+@ToString(exclude = "wonGames")
 @AllArgsConstructor
 @Entity
 public class Player implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
-    @Getter @Setter private String name; // Primární klíč
+    @Getter @Setter private String name;
 
     @Getter private int gamesPlayed;
     @Getter private int gamesWon;
     @Getter private int totalMoves;
     @Getter private long totalTimeMillis;
 
-    // Definice vazby 1:N
-    // Jeden hráč může mít mnoho vyhraných her
+    // Vazba 1:N – 1 hráč : N vyhraných
     @OneToMany(mappedBy = "winnerPlayer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Getter private List<GameResult> wonGames = new ArrayList<>();
 
-    // JPA vyžaduje konstruktor bez parametrů
     public Player() {
     }
 

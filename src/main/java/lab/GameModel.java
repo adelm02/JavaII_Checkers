@@ -1,10 +1,3 @@
-/*
- * GameModel
- *
- * Version 1.1
- *
- * 2025 Checkers Project
- */
 package lab;
 
 import javafx.scene.image.Image;
@@ -349,21 +342,27 @@ public class GameModel implements Serializable {
         }
 
         String winner = null;
+        Player winnerPlayerObj = null;
         if (whitePieces == 0 || !whiteCanMove) {
             winner = blackPlayer.getName();
+            winnerPlayerObj = blackPlayer;
         } else if (blackPieces == 0 || !blackCanMove) {
             winner = whitePlayer.getName();
+            winnerPlayerObj = whitePlayer;
         }
 
         if (winner != null) {
             gameEnded = true;
             long gameDuration = System.currentTimeMillis() - gameStartTime;
+
+            // Vytvoření výsledku s vazbou na vítěze (1:N)
             GameResult result = new GameResult(
                     whitePlayer.getName(),
                     blackPlayer.getName(),
                     winner,
                     moveCount,
-                    gameDuration
+                    gameDuration,
+                    winnerPlayerObj
             );
             dataManager.addGameResult(result);
 

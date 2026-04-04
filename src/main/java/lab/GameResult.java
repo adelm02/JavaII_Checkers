@@ -6,13 +6,13 @@ import lombok.extern.java.Log;
 import java.time.LocalDateTime;
 
 @Log
-@ToString
+@ToString(exclude = "winnerPlayer")
 @AllArgsConstructor
 @Entity
 public class GameResult implements Comparable<GameResult> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Automatický primární klíč
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Getter private Long id;
 
     @Getter private String whitePlayerName;
@@ -22,12 +22,11 @@ public class GameResult implements Comparable<GameResult> {
     @Getter private long gameDurationMillis;
     private LocalDateTime timestamp;
 
-    // Protikus vazby 1:N
+    // Vazba 1:N  N výsledků:1 hráč (vítěz)
     @ManyToOne
     @JoinColumn(name = "winner_id")
-    @Getter private Player winnerPlayer;
+    @Getter @Setter private Player winnerPlayer;
 
-    // JPA vyžaduje konstruktor bez parametrů
     public GameResult() {
     }
 

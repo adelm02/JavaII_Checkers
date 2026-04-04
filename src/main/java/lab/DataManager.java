@@ -12,7 +12,6 @@ public class DataManager {
     private final EntityManagerFactory emf;
 
     public DataManager() {
-        // Vytvoření factory na základě persistence.xml
         emf = Persistence.createEntityManagerFactory("checkersPU");
         log.info("JPA EntityManagerFactory vytvořena");
     }
@@ -26,12 +25,12 @@ public class DataManager {
         EntityManager em = emf.createEntityManager();
 
         try {
-            Player player = em.find(Player.class, key); // Vyhledání v DB podle ID
+            Player player = em.find(Player.class, key);
             if (player != null) return player;
 
             player = new Player(key);
             em.getTransaction().begin();
-            em.persist(player); // Uložení nového hráče
+            em.persist(player);
             em.getTransaction().commit();
             return player;
         } finally {
@@ -44,11 +43,12 @@ public class DataManager {
         try {
             em.getTransaction().begin();
 
-            // Najdeme objekty hráčů v DB, abychom je mohli aktualizovat
+            // Načtení hráčů z DB
             Player white = em.find(Player.class, result.getWhitePlayerName());
             Player black = em.find(Player.class, result.getBlackPlayerName());
             Player winner = em.find(Player.class, result.getWinner());
 
+            // Aktualizace statistik hráčů
             if (white != null) {
                 white.addGameResult(result.getWinner().equals(white.getName()),
                         result.getTotalMoves(), result.getGameDurationMillis());
@@ -60,10 +60,12 @@ public class DataManager {
                 em.merge(black);
             }
 
-            // Propojení výsledku s vítězem (vazba 1:N)
-            // result.setWinnerPlayer(winner); // Pokud bys měl setter
-            em.persist(result);
+            // Propojení výsledku s vítězem – vazba 1:N
+            if (winner != null) {
+                result.setWinnerPlayer(winner);
+            }
 
+            em.persist(result);
             em.getTransaction().commit();
         } catch (Exception e) {
             if (em.getTransaction().isActive()) em.getTransaction().rollback();

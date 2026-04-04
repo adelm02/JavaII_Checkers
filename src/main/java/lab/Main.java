@@ -1,10 +1,3 @@
-/*
- * Main
- *
- * Version 1.2
- *
- * 2025 Checkers Project
- */
 package lab;
 
 import javafx.application.Application;
