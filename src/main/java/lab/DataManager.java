@@ -1,10 +1,3 @@
-/*
- * DataManager
- *
- * Version 2.0
- *
- * 2025 Checkers Project
- */
 package lab;
 
 import jakarta.persistence.EntityManager;
@@ -19,8 +12,9 @@ public class DataManager {
     private final EntityManagerFactory emf;
 
     public DataManager() {
+        // Vytvoření factory na základě persistence.xml
         emf = Persistence.createEntityManagerFactory("checkersPU");
-        log.info("JPA EntityManagerFactory created");
+        log.info("JPA EntityManagerFactory vytvořena");
     }
 
     public Player loginPlayer(String name) {
@@ -32,80 +26,62 @@ public class DataManager {
         EntityManager em = emf.createEntityManager();
 
         try {
-            Player player = em.find(Player.class, key);
-            if (player != null) {
-                log.info("Player logged in: " + key);
-                return player;
-            }
+            Player player = em.find(Player.class, key); // Vyhledání v DB podle ID
+            if (player != null) return player;
 
-            // new player
             player = new Player(key);
             em.getTransaction().begin();
-            em.persist(player);
+            em.persist(player); // Uložení nového hráče
             em.getTransaction().commit();
-            log.info("New player created: " + key);
             return player;
         } finally {
             em.close();
         }
     }
 
-    /**
-     * Adds game result and updates player stats.
-     */
     public void addGameResult(GameResult result) {
         EntityManager em = emf.createEntityManager();
-
         try {
             em.getTransaction().begin();
 
-            // save result
+            // Najdeme objekty hráčů v DB, abychom je mohli aktualizovat
+            Player white = em.find(Player.class, result.getWhitePlayerName());
+            Player black = em.find(Player.class, result.getBlackPlayerName());
+            Player winner = em.find(Player.class, result.getWinner());
+
+            if (white != null) {
+                white.addGameResult(result.getWinner().equals(white.getName()),
+                        result.getTotalMoves(), result.getGameDurationMillis());
+                em.merge(white);
+            }
+            if (black != null) {
+                black.addGameResult(result.getWinner().equals(black.getName()),
+                        result.getTotalMoves(), result.getGameDurationMillis());
+                em.merge(black);
+            }
+
+            // Propojení výsledku s vítězem (vazba 1:N)
+            // result.setWinnerPlayer(winner); // Pokud bys měl setter
             em.persist(result);
 
-            // update players
-            Player whitePlayer = em.find(Player.class, result.getWhitePlayerName());
-            Player blackPlayer = em.find(Player.class, result.getBlackPlayerName());
-
-            if (whitePlayer != null) {
-                boolean won = result.getWinner().equals(whitePlayer.getName());
-                whitePlayer.addGameResult(won, result.getTotalMoves(), result.getGameDurationMillis());
-                em.merge(whitePlayer);
-            }
-
-            if (blackPlayer != null) {
-                boolean won = result.getWinner().equals(blackPlayer.getName());
-                blackPlayer.addGameResult(won, result.getTotalMoves(), result.getGameDurationMillis());
-                em.merge(blackPlayer);
-            }
-
             em.getTransaction().commit();
-            log.info("Game result saved to database");
         } catch (Exception e) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-            log.severe("Chyba při ukládání výsledku: " + e.getMessage());
+            if (em.getTransaction().isActive()) em.getTransaction().rollback();
+            log.severe("Chyba při ukládání: " + e.getMessage());
         } finally {
             em.close();
         }
     }
 
-    /**
-     * Returns all game results from DB.
-     */
     public List<GameResult> getAllResults() {
         EntityManager em = emf.createEntityManager();
         try {
-            return em.createQuery("SELECT r FROM GameResult r", GameResult.class)
-                    .getResultList();
+            return em.createQuery("SELECT r FROM GameResult r", GameResult.class).getResultList();
         } finally {
             em.close();
         }
     }
 
-    /**
-     * Returns top players sorted by win rate.
-     */
     public List<Player> getTopPlayers(int limit) {
         EntityManager em = emf.createEntityManager();
         try {
@@ -117,11 +93,7 @@ public class DataManager {
         }
     }
 
-
     public void close() {
-        if (emf != null && emf.isOpen()) {
-            emf.close();
-            log.info("EntityManagerFactory closed");
-        }
+        if (emf != null && emf.isOpen()) emf.close();
     }
 }

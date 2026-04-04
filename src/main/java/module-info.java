@@ -6,10 +6,9 @@ module lab {
     requires java.logging;
 
     requires jakarta.persistence;
-    requires jakarta.activation;
     requires eclipselink;
     requires java.sql;
 
-    opens lab to javafx.base, eclipselink;
+    opens lab to javafx.base, eclipselink, jakarta.persistence;
     exports lab;
 }

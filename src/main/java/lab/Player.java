@@ -1,29 +1,33 @@
 package lab;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import jakarta.persistence.*;
+import lombok.*;
 import lombok.extern.java.Log;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 @Log
-@ToString
+@ToString(exclude = "wonGames") // Exclude list to prevent circular references in logs
 @AllArgsConstructor
 @Entity
 public class Player implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
-    @Getter @Setter private String name;
+    @Getter @Setter private String name; // Primární klíč
+
     @Getter private int gamesPlayed;
     @Getter private int gamesWon;
     @Getter private int totalMoves;
     @Getter private long totalTimeMillis;
 
-    // JPA requires no-arg constructor
+    // Definice vazby 1:N
+    // Jeden hráč může mít mnoho vyhraných her
+    @OneToMany(mappedBy = "winnerPlayer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Getter private List<GameResult> wonGames = new ArrayList<>();
+
+    // JPA vyžaduje konstruktor bez parametrů
     public Player() {
     }
 
@@ -43,14 +47,10 @@ public class Player implements Serializable {
         if (won) gamesWon++;
         totalMoves += moves;
         totalTimeMillis += timeMillis;
-        log.info("Game result added for " + name + ", won: " + won);
+        log.info("Výsledek hry přidán pro " + name + ", výhra: " + won);
     }
 
     public double getWinRate() {
         return gamesPlayed > 0 ? (double) gamesWon / gamesPlayed * 100 : 0;
-    }
-
-    public double getAverageMoves() {
-        return gamesPlayed > 0 ? (double) totalMoves / gamesPlayed : 0;
     }
 }
