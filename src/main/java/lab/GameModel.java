@@ -364,7 +364,13 @@ public class GameModel implements Serializable {
                     gameDuration,
                     winnerPlayerObj
             );
-            dataManager.addGameResult(result);
+            try {
+                dataManager.addGameResult(result);
+            } catch (RuntimeException e) {
+                if (onMessage != null) {
+                    onMessage.accept("Výsledek hry se nepodařilo uložit na server.");
+                }
+            }
 
             onGameEnd.accept(winner);
         }

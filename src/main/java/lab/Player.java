@@ -1,5 +1,6 @@
 package lab;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.extern.java.Log;
@@ -24,6 +25,7 @@ public class Player implements Serializable {
 
     // Vazba 1:N – 1 hráč : N vyhraných
     @OneToMany(mappedBy = "winnerPlayer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Getter private List<GameResult> wonGames = new ArrayList<>();
 
     public Player() {

@@ -1,5 +1,6 @@
 package lab;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.extern.java.Log;
@@ -15,16 +16,17 @@ public class GameResult implements Comparable<GameResult> {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Getter private Long id;
 
-    @Getter private String whitePlayerName;
-    @Getter private String blackPlayerName;
-    @Getter private String winner;
-    @Getter private int totalMoves;
-    @Getter private long gameDurationMillis;
-    private LocalDateTime timestamp;
+    @Getter @Setter private String whitePlayerName;
+    @Getter @Setter private String blackPlayerName;
+    @Getter @Setter private String winner;
+    @Getter @Setter private int totalMoves;
+    @Getter @Setter private long gameDurationMillis;
+    @Getter @Setter private LocalDateTime timestamp;
 
     // Vazba 1:N  N výsledků:1 hráč (vítěz)
     @ManyToOne
     @JoinColumn(name = "winner_id")
+    @JsonIgnore
     @Getter @Setter private Player winnerPlayer;
 
     public GameResult() {

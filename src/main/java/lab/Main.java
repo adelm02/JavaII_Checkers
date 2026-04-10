@@ -1,5 +1,6 @@
 package lab;
 
+import cz.vsb.checkers.CheckersApiApplication;
 import javafx.application.Application;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Pos;
@@ -11,6 +12,9 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import lombok.extern.java.Log;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
+
 import java.util.Objects;
 
 @Log
@@ -27,6 +31,7 @@ public class Main extends Application {
     private final int BOARD_SIZE = 800;
 
     private static final String SAVE_FILE = "savedGame.bin";
+    private static ConfigurableApplicationContext springContext;
 
     private DataManager dataManager;
     private Stage primaryStage;
@@ -39,6 +44,16 @@ public class Main extends Application {
         showMainMenu();
         primaryStage.show();
         log.info("Application started");
+    }
+
+    @Override
+    public void stop() {
+        if (dataManager != null) {
+            dataManager.close();
+        }
+        if (springContext != null) {
+            springContext.close();
+        }
     }
 
     private void showMainMenu() {
@@ -73,7 +88,11 @@ public class Main extends Application {
                 showAlert("Chyba", "Zadejte dvě různá jména.");
                 return;
             }
-            startGame(dataManager.loginPlayer(w), dataManager.loginPlayer(b), null);
+            try {
+                startGame(dataManager.loginPlayer(w), dataManager.loginPlayer(b), null);
+            } catch (RuntimeException ex) {
+                showAlert("Chyba", "Nepodařilo se komunikovat s REST API.");
+            }
         });
 
         root.getChildren().addAll(title, new Label("Bílý:"), whiteName, new Label("Černý:"), blackName, loginBtn,
@@ -83,9 +102,15 @@ public class Main extends Application {
     }
 
     private void showStatistics() {
-        TabPane tabs = new TabPane();
-        tabs.getTabs().add(createTab("Top Hráči", createPlayersTable()));
-        tabs.getTabs().add(createTab("Historie", createHistoryTable()));
+        TabPane tabs;
+        try {
+            tabs = new TabPane();
+            tabs.getTabs().add(createTab("Top Hráči", createPlayersTable()));
+            tabs.getTabs().add(createTab("Historie", createHistoryTable()));
+        } catch (RuntimeException e) {
+            showAlert("Chyba", "Nepodařilo se načíst statistiky z REST API.");
+            return;
+        }
 
         VBox root = createLayout();
         root.getChildren().addAll(tabs, createButton("Zpět", "button-cancel", e -> showMainMenu()));
@@ -231,5 +256,10 @@ public class Main extends Application {
         }
     }
 
-    public static void main(String[] args) { launch(args); }
+    public static void main(String[] args) {
+        springContext = new SpringApplicationBuilder(CheckersApiApplication.class)
+                .headless(false)
+                .run(args);
+        launch(args);
+    }
 }

@@ -137,7 +137,7 @@ public class Board extends Canvas {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Konec hry");
         alert.setHeaderText("Hra skončila!");
-        alert.setContentText(String.format("Vítěz: %s%nPočet tahů: %d%nČas hry: %d:%02d%nVýsledek byl uložen.",
+        alert.setContentText(String.format("Vítěz: %s%nPočet tahů: %d%nČas hry: %d:%02d%nVýsledek byl odeslán backendu.",
                 winner, gameModel.getMoveCount(), minutes, secs));
         alert.showAndWait();
     }

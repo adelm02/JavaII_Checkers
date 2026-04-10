@@ -1,101 +1,127 @@
 package lab;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.Persistence;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import cz.vsb.checkers.api.dto.LoginPlayerRequest;
+import cz.vsb.checkers.api.dto.SaveGameResultRequest;
 import lombok.extern.java.Log;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 
 @Log
 public class DataManager {
 
-    private final EntityManagerFactory emf;
+    private static final String DEFAULT_API_URL = "http://localhost:8080";
+
+    private final HttpClient httpClient;
+    private final ObjectMapper objectMapper;
+    private final String baseUrl;
 
     public DataManager() {
-        emf = Persistence.createEntityManagerFactory("checkersPU");
-        log.info("JPA EntityManagerFactory vytvořena");
+        this.baseUrl = System.getProperty("checkers.api.base-url", DEFAULT_API_URL);
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3))
+                .build();
+        this.objectMapper = new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        log.info("REST DataManager initialized for " + baseUrl);
     }
 
     public Player loginPlayer(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Jméno hráče nesmí být prázdné.");
-        }
-
-        String key = name.trim();
-        EntityManager em = emf.createEntityManager();
-
         try {
-            Player player = em.find(Player.class, key);
-            if (player != null) return player;
-
-            player = new Player(key);
-            em.getTransaction().begin();
-            em.persist(player);
-            em.getTransaction().commit();
-            return player;
-        } finally {
-            em.close();
+            return post("/api/players/login", new LoginPlayerRequest(name), Player.class);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Nepodařilo se přihlásit hráče přes REST API.", e);
+        } catch (IOException e) {
+            throw new IllegalStateException("Nepodařilo se přihlásit hráče přes REST API.", e);
         }
     }
 
     public void addGameResult(GameResult result) {
-        EntityManager em = emf.createEntityManager();
         try {
-            em.getTransaction().begin();
-
-            // Načtení hráčů z DB
-            Player white = em.find(Player.class, result.getWhitePlayerName());
-            Player black = em.find(Player.class, result.getBlackPlayerName());
-            Player winner = em.find(Player.class, result.getWinner());
-
-            // Aktualizace statistik hráčů
-            if (white != null) {
-                white.addGameResult(result.getWinner().equals(white.getName()),
-                        result.getTotalMoves(), result.getGameDurationMillis());
-                em.merge(white);
-            }
-            if (black != null) {
-                black.addGameResult(result.getWinner().equals(black.getName()),
-                        result.getTotalMoves(), result.getGameDurationMillis());
-                em.merge(black);
-            }
-
-            // Propojení výsledku s vítězem – vazba 1:N
-            if (winner != null) {
-                result.setWinnerPlayer(winner);
-            }
-
-            em.persist(result);
-            em.getTransaction().commit();
-        } catch (Exception e) {
-            if (em.getTransaction().isActive()) em.getTransaction().rollback();
-            log.severe("Chyba při ukládání: " + e.getMessage());
-        } finally {
-            em.close();
+            post("/api/results",
+                    new SaveGameResultRequest(
+                            result.getWhitePlayerName(),
+                            result.getBlackPlayerName(),
+                            result.getWinner(),
+                            result.getTotalMoves(),
+                            result.getGameDurationMillis()
+                    ),
+                    GameResult.class);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Nepodařilo se uložit výsledek hry přes REST API.", e);
+        } catch (IOException e) {
+            throw new IllegalStateException("Nepodařilo se uložit výsledek hry přes REST API.", e);
         }
     }
 
     public List<GameResult> getAllResults() {
-        EntityManager em = emf.createEntityManager();
         try {
-            return em.createQuery("SELECT r FROM GameResult r", GameResult.class).getResultList();
-        } finally {
-            em.close();
+            return getList("/api/results", new TypeReference<>() {});
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Nepodařilo se načíst historii her.", e);
+        } catch (IOException e) {
+            throw new IllegalStateException("Nepodařilo se načíst historii her.", e);
         }
     }
 
     public List<Player> getTopPlayers(int limit) {
-        EntityManager em = emf.createEntityManager();
         try {
-            return em.createQuery("SELECT p FROM Player p ORDER BY p.gamesWon DESC", Player.class)
-                    .setMaxResults(limit)
-                    .getResultList();
-        } finally {
-            em.close();
+            String path = "/api/players/top?limit=" + URLEncoder.encode(String.valueOf(limit), StandardCharsets.UTF_8);
+            return getList(path, new TypeReference<>() {});
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Nepodařilo se načíst statistiky hráčů.", e);
+        } catch (IOException e) {
+            throw new IllegalStateException("Nepodařilo se načíst statistiky hráčů.", e);
         }
     }
 
     public void close() {
-        if (emf != null && emf.isOpen()) emf.close();
+    }
+
+    private <T> T post(String path, Object body, Class<T> responseType) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + path))
+                .timeout(Duration.ofSeconds(5))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        ensureSuccess(response);
+        return objectMapper.readValue(response.body(), responseType);
+    }
+
+    private <T> List<T> getList(String path, TypeReference<List<T>> typeReference) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + path))
+                .timeout(Duration.ofSeconds(5))
+                .GET()
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        ensureSuccess(response);
+        return objectMapper.readValue(response.body(), typeReference);
+    }
+
+    private void ensureSuccess(HttpResponse<String> response) {
+        if (response.statusCode() >= 400) {
+            throw new IllegalStateException("REST API error: " + response.statusCode() + " " + response.body());
+        }
     }
 }
