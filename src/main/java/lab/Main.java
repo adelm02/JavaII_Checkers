@@ -31,16 +31,20 @@ public class Main extends Application {
     private static final int BOARD_SIZE = 800;
     private static final String SAVE_FILE = "savedGame.bin";
 
-    private static ConfigurableApplicationContext springContext;
+    private ConfigurableApplicationContext springContext;
 
     private DataManager dataManager;
     private Stage primaryStage;
 
     public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void init() {
         springContext = new SpringApplicationBuilder(CheckersApiApplication.class)
                 .headless(false)
-                .run(args);
-        launch(args);
+                .run();
     }
 
     @Override

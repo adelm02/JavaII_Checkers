@@ -10,7 +10,7 @@ import java.util.List;
 
 @Log
 @ToString(exclude = "wonGames")
-@AllArgsConstructor
+@NoArgsConstructor
 @Entity
 public class Player implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -23,13 +23,10 @@ public class Player implements Serializable {
     @Getter private int totalMoves;
     @Getter private long totalTimeMillis;
 
-    // Vazba 1:N – 1 hráč : N vyhraných
+    // Vazba 1:N – 1 hráč : N vyhraných her
     @OneToMany(mappedBy = "winnerPlayer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
     @Getter private List<GameResult> wonGames = new ArrayList<>();
-
-    public Player() {
-    }
 
     public Player(String name) {
         this.name = name;
