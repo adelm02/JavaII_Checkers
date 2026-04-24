@@ -1,12 +1,16 @@
 package cz.vsb.checkers;
 
-import £org.springframework.boot.SpringApplication;
+import lab.Main;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication(scanBasePackages = {"cz.vsb.checkers", "lab"})
+@EntityScan(basePackages = {"lab", "cz.vsb.checkers"})
+@EnableJpaRepositories(basePackages = {"cz.vsb.checkers.api.repository"})
 public class CheckersApiApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(CheckersApiApplication.class, args);
+        Main.main(args);
     }
 }

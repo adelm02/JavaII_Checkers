@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 @Log
 @ToString(exclude = "winnerPlayer")
+@NoArgsConstructor
 @AllArgsConstructor
 @Entity
 public class GameResult implements Comparable<GameResult> {
@@ -23,14 +24,10 @@ public class GameResult implements Comparable<GameResult> {
     @Getter @Setter private long gameDurationMillis;
     @Getter @Setter private LocalDateTime timestamp;
 
-    // Vazba 1:N  N výsledků:1 hráč (vítěz)
     @ManyToOne
     @JoinColumn(name = "winner_id")
     @JsonIgnore
     @Getter @Setter private Player winnerPlayer;
-
-    public GameResult() {
-    }
 
     public GameResult(String whitePlayerName, String blackPlayerName, String winner,
                       int totalMoves, long gameDurationMillis, Player winnerPlayer) {

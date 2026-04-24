@@ -20,21 +20,28 @@ import java.util.Objects;
 @Log
 public class Main extends Application {
 
-    private final int MENU_WIDTH = 500;
-    private final int MENU_HEIGHT = 500;
-    private final int LOGIN_WIDTH = 500;
-    private final int LOGIN_HEIGHT = 350;
-    private final int STATS_WIDTH = 800;
-    private final int STATS_HEIGHT = 600;
-    private final int GAME_WINDOW_WIDTH = 850;
-    private final int GAME_WINDOW_HEIGHT = 1000;
-    private final int BOARD_SIZE = 800;
-
+    private static final int MENU_WIDTH = 500;
+    private static final int MENU_HEIGHT = 500;
+    private static final int LOGIN_WIDTH = 500;
+    private static final int LOGIN_HEIGHT = 350;
+    private static final int STATS_WIDTH = 800;
+    private static final int STATS_HEIGHT = 600;
+    private static final int GAME_WINDOW_WIDTH = 850;
+    private static final int GAME_WINDOW_HEIGHT = 1000;
+    private static final int BOARD_SIZE = 800;
     private static final String SAVE_FILE = "savedGame.bin";
+
     private static ConfigurableApplicationContext springContext;
 
     private DataManager dataManager;
     private Stage primaryStage;
+
+    public static void main(String[] args) {
+        springContext = new SpringApplicationBuilder(CheckersApiApplication.class)
+                .headless(false)
+                .run(args);
+        launch(args);
+    }
 
     @Override
     public void start(Stage stage) {
@@ -48,17 +55,12 @@ public class Main extends Application {
 
     @Override
     public void stop() {
-        if (dataManager != null) {
-            dataManager.close();
-        }
-        if (springContext != null) {
-            springContext.close();
-        }
+        if (dataManager != null) dataManager.close();
+        if (springContext != null) springContext.close();
     }
 
     private void showMainMenu() {
         VBox root = createLayout();
-
         Label title = new Label("Checkers");
         title.getStyleClass().add("title-label");
 
@@ -69,7 +71,6 @@ public class Main extends Application {
                 createButton("Statistiky", "button", e -> showStatistics()),
                 createButton("Konec", "button-cancel", e -> primaryStage.close())
         );
-
         switchScene(root, MENU_WIDTH, MENU_HEIGHT);
     }
 
@@ -78,8 +79,10 @@ public class Main extends Application {
         Label title = new Label("Přihlášení hráčů");
         title.getStyleClass().add("subtitle-label");
 
-        TextField whiteName = new TextField(); whiteName.setPromptText("Bílý hráč");
-        TextField blackName = new TextField(); blackName.setPromptText("Černý hráč");
+        TextField whiteName = new TextField();
+        whiteName.setPromptText("Bílý hráč");
+        TextField blackName = new TextField();
+        blackName.setPromptText("Černý hráč");
 
         Button loginBtn = createButton("Hrát", "button-action", e -> {
             String w = whiteName.getText().trim();
@@ -91,13 +94,18 @@ public class Main extends Application {
             try {
                 startGame(dataManager.loginPlayer(w), dataManager.loginPlayer(b), null);
             } catch (RuntimeException ex) {
+                log.severe("REST error: " + ex.getMessage());
                 showAlert("Chyba", "Nepodařilo se komunikovat s REST API.");
             }
         });
 
-        root.getChildren().addAll(title, new Label("Bílý:"), whiteName, new Label("Černý:"), blackName, loginBtn,
-                createButton("Zpět", "button-cancel", e -> showMainMenu()));
-
+        root.getChildren().addAll(
+                title,
+                new Label("Bílý:"), whiteName,
+                new Label("Černý:"), blackName,
+                loginBtn,
+                createButton("Zpět", "button-cancel", e -> showMainMenu())
+        );
         switchScene(root, LOGIN_WIDTH, LOGIN_HEIGHT);
     }
 
@@ -108,13 +116,13 @@ public class Main extends Application {
             tabs.getTabs().add(createTab("Top Hráči", createPlayersTable()));
             tabs.getTabs().add(createTab("Historie", createHistoryTable()));
         } catch (RuntimeException e) {
+            log.severe("Stats error: " + e.getMessage());
             showAlert("Chyba", "Nepodařilo se načíst statistiky z REST API.");
             return;
         }
 
         VBox root = createLayout();
         root.getChildren().addAll(tabs, createButton("Zpět", "button-cancel", e -> showMainMenu()));
-
         switchScene(root, STATS_WIDTH, STATS_HEIGHT);
     }
 
@@ -123,20 +131,17 @@ public class Main extends Application {
         infoLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 0 0 10 0;");
 
         Board board = new Board(BOARD_SIZE, BOARD_SIZE, infoLabel, loadedModel, white, black, dataManager);
-        Button exitBtn = createButton("Ukončit hru", "button-cancel", e -> handleExit(board));
 
         VBox root = createLayout();
-        root.getChildren().addAll(infoLabel, board, exitBtn);
-
+        root.getChildren().addAll(infoLabel, board, createButton("Ukončit hru", "button-cancel", e -> handleExit(board)));
         switchScene(root, GAME_WINDOW_WIDTH, GAME_WINDOW_HEIGHT);
     }
 
-    // logic
     private void loadGameAction() {
-        Image w = new Image(Objects.requireNonNull(getClass().getResource("/images/white.png")).toExternalForm());
-        Image b = new Image(Objects.requireNonNull(getClass().getResource("/images/black.png")).toExternalForm());
-        Image qw = new Image(Objects.requireNonNull(getClass().getResource("/images/qeenW.png")).toExternalForm());
-        Image qb = new Image(Objects.requireNonNull(getClass().getResource("/images/qeenB.png")).toExternalForm());
+        Image w = loadImage("/images/white.png");
+        Image b = loadImage("/images/black.png");
+        Image qw = loadImage("/images/qeenW.png");
+        Image qb = loadImage("/images/qeenB.png");
 
         GameModel model = GameModel.loadGame(SAVE_FILE, w, b, qw, qb,
                 msg -> showAlert("Info", msg),
@@ -145,60 +150,32 @@ public class Main extends Application {
     }
 
     private void handleExit(Board board) {
-        if (board.isGameEnded()) { showMainMenu(); return; }
+        if (board.isGameEnded()) {
+            showMainMenu();
+            return;
+        }
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Ukončit hru");
         alert.setHeaderText("Hra probíhá");
         alert.setContentText("Chcete hru uložit před ukončením?");
 
-        ButtonType buttonYes = new ButtonType("Ano");
-        ButtonType buttonNo = new ButtonType("Ne");
-        ButtonType buttonCancel = new ButtonType("Zrušit", ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(buttonYes, buttonNo, buttonCancel);
-
+        ButtonType yes = new ButtonType("Ano");
+        ButtonType no = new ButtonType("Ne");
+        ButtonType cancel = new ButtonType("Zrušit", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(yes, no, cancel);
         styleAlert(alert);
 
         alert.showAndWait().ifPresent(type -> {
-            if (type == buttonYes) {
+            if (type == yes) {
                 board.getGameModel().saveGame(SAVE_FILE);
                 showMainMenu();
-            } else if (type == buttonNo) {
+            } else if (type == no) {
                 showMainMenu();
             }
         });
     }
 
-    private VBox createLayout() {
-        VBox box = new VBox(15);
-        box.setAlignment(Pos.CENTER);
-        box.setPadding(new javafx.geometry.Insets(20));
-        return box;
-    }
-
-    private Button createButton(String text, String styleClass, javafx.event.EventHandler<javafx.event.ActionEvent> action) {
-        Button btn = new Button(text);
-        btn.getStyleClass().add(styleClass);
-        btn.setOnAction(action);
-        return btn;
-    }
-
-    private void switchScene(Parent root, int width, int height) {
-        Scene scene = new Scene(root, width, height);
-        try {
-            scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
-        } catch (Exception e) { /* ignor style error*/ }
-        primaryStage.setScene(scene);
-        primaryStage.centerOnScreen();
-    }
-
-    private Tab createTab(String title, Control content) {
-        Tab tab = new Tab(title, content);
-        tab.setClosable(false);
-        return tab;
-    }
-
-    //statistic tables
     private TableView<Player> createPlayersTable() {
         TableView<Player> table = new TableView<>();
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
@@ -210,7 +187,8 @@ public class Main extends Application {
         wins.setCellValueFactory(new PropertyValueFactory<>("gamesWon"));
 
         TableColumn<Player, String> rate = new TableColumn<>("Úspěšnost");
-        rate.setCellValueFactory(c -> new SimpleStringProperty(String.format("%.1f %%", c.getValue().getWinRate())));
+        rate.setCellValueFactory(c -> new SimpleStringProperty(
+                String.format("%.1f %%", c.getValue().getWinRate())));
 
         table.getColumns().addAll(name, wins, rate);
         table.getItems().addAll(dataManager.getTopPlayers(10));
@@ -231,11 +209,45 @@ public class Main extends Application {
         win.setCellValueFactory(new PropertyValueFactory<>("winner"));
 
         TableColumn<GameResult, String> time = new TableColumn<>("Čas");
-        time.setCellValueFactory(c -> new SimpleStringProperty(String.format("%d:%02d", c.getValue().getGameDurationSeconds() / 60, c.getValue().getGameDurationSeconds() % 60)));
+        time.setCellValueFactory(c -> {
+            long secs = c.getValue().getGameDurationSeconds();
+            return new SimpleStringProperty(String.format("%d:%02d", secs / 60, secs % 60));
+        });
 
         table.getColumns().addAll(w, b, win, time);
         table.getItems().addAll(dataManager.getAllResults());
         return table;
+    }
+
+    private VBox createLayout() {
+        VBox box = new VBox(15);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new javafx.geometry.Insets(20));
+        return box;
+    }
+
+    private Button createButton(String text, String styleClass,
+                                javafx.event.EventHandler<javafx.event.ActionEvent> action) {
+        Button btn = new Button(text);
+        btn.getStyleClass().add(styleClass);
+        btn.setOnAction(action);
+        return btn;
+    }
+
+    private Tab createTab(String title, Control content) {
+        Tab tab = new Tab(title, content);
+        tab.setClosable(false);
+        return tab;
+    }
+
+    private void switchScene(Parent root, int width, int height) {
+        Scene scene = new Scene(root, width, height);
+        try {
+            scene.getStylesheets().add(
+                    Objects.requireNonNull(getClass().getResource("/styles.css")).toExternalForm());
+        } catch (Exception ignored) {}
+        primaryStage.setScene(scene);
+        primaryStage.centerOnScreen();
     }
 
     private void showAlert(String title, String content) {
@@ -248,18 +260,14 @@ public class Main extends Application {
     }
 
     private void styleAlert(Alert alert) {
-        DialogPane dialogPane = alert.getDialogPane();
         try {
-            dialogPane.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
-            dialogPane.getStyleClass().add("my-dialog");
-        } catch (Exception e) {
-        }
+            alert.getDialogPane().getStylesheets().add(
+                    Objects.requireNonNull(getClass().getResource("/styles.css")).toExternalForm());
+            alert.getDialogPane().getStyleClass().add("my-dialog");
+        } catch (Exception ignored) {}
     }
 
-    public static void main(String[] args) {
-        springContext = new SpringApplicationBuilder(CheckersApiApplication.class)
-                .headless(false)
-                .run(args);
-        launch(args);
+    private Image loadImage(String path) {
+        return new Image(Objects.requireNonNull(getClass().getResource(path)).toExternalForm());
     }
 }
