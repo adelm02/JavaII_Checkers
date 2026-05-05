@@ -70,6 +70,7 @@ public class Board extends Canvas {
 
     // for saving game
     public GameModel getGameModel() {
+
         return gameModel;
     }
 

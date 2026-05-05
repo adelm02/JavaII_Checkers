@@ -36,7 +36,7 @@ public class GameSession {
     @ManyToOne(optional = false)
     @JoinColumn(name = "white_player_id")
     private Player whitePlayer;
-
+//nemuze byt null, vzdy jsou hraci
     @ManyToOne(optional = false)
     @JoinColumn(name = "black_player_id")
     private Player blackPlayer;

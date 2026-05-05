@@ -19,10 +19,14 @@ module checkers.api {
 
     requires org.hibernate.orm.core;
 
+//import při kompilaci
     exports cz.vsb.checkers;
     exports lab;
 
+//muzou pristupovat za behu
     opens lab;
     opens cz.vsb.checkers;
     opens cz.vsb.checkers.api.web;
+    opens cz.vsb.checkers.api.dto;
+    opens cz.vsb.checkers.api.repository;
 }

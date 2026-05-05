@@ -45,10 +45,10 @@ public class DataManager {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Nepodařilo se přihlásit hráče přes REST API.", e);
         } catch (IOException e) {
+            log.severe("IOException detail: " + e.getClass().getName() + ": " + e.getMessage());
             throw new IllegalStateException("Nepodařilo se přihlásit hráče přes REST API.", e);
         }
     }
-
     public void addGameResult(GameResult result) {
         try {
             post("/api/results",

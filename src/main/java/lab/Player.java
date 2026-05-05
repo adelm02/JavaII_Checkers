@@ -23,7 +23,7 @@ public class Player implements Serializable {
     @Getter private int totalMoves;
     @Getter private long totalTimeMillis;
 
-    // Vazba 1:N – 1 hráč : N vyhraných her
+    // 1:N – 1 Player : N GameResults, ulozen klic v GR
     @OneToMany(mappedBy = "winnerPlayer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonIgnore
     @Getter private List<GameResult> wonGames = new ArrayList<>();
